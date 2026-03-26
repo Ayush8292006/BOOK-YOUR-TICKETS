@@ -7,18 +7,26 @@ import showRouter from './routes/showRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRoutes.js';
 import userRouter from './routes/userRoutes.js';
-// ❌ Remove: import stripeRouter from './routes/stripeRoutes.js';
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-await connectDB();
+// Database connection (don't await at top level for Vercel)
+const startDB = async () => {
+    try {
+        await connectDB();
+        console.log('✅ Database connected');
+    } catch (error) {
+        console.error('❌ Database error:', error.message);
+    }
+};
+startDB();
 
 app.use(express.json());
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://cinebook-livid.vercel.app'],
-  credentials: true
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://cinebook-livid.vercel.app'],
+    credentials: true
 }));
 
 app.use(clerkMiddleware());
@@ -30,8 +38,13 @@ app.use('/api/show', showRouter);
 app.use('/api/booking', bookingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/user', userRouter);
-// ❌ Remove: app.use('/api/stripe', stripeRouter);
 
-app.listen(port, () => {
-  console.log(`✅ Server listening at http://localhost:${port}`);
-});
+// ✅ For Vercel - export app
+export default app;
+
+// ✅ For local development only
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`✅ Server listening at http://localhost:${port}`);
+    });
+}
