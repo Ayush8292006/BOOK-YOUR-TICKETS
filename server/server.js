@@ -9,18 +9,9 @@ import adminRouter from './routes/adminRoutes.js';
 import userRouter from './routes/userRoutes.js';
 
 const app = express();
-const port = process.env.PORT || 3000;
 
-// Database connection (don't await at top level for Vercel)
-const startDB = async () => {
-    try {
-        await connectDB();
-        console.log('✅ Database connected');
-    } catch (error) {
-        console.error('❌ Database error:', error.message);
-    }
-};
-startDB();
+// ✅ Connect to database (without blocking)
+connectDB();
 
 app.use(express.json());
 
@@ -31,7 +22,8 @@ app.use(cors({
 
 app.use(clerkMiddleware());
 
-app.get('/', (req, res) => res.send('Server is Live!'));
+app.get('/', (req, res) => res.json({ success: true, message: 'Server is Live!' }));
+app.get('/api/health', (req, res) => res.json({ success: true, status: 'ok' }));
 
 // API Routes
 app.use('/api/show', showRouter);
@@ -39,12 +31,5 @@ app.use('/api/booking', bookingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/user', userRouter);
 
-// ✅ For Vercel - export app
+// ✅ Export for Vercel
 export default app;
-
-// ✅ For local development only
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`✅ Server listening at http://localhost:${port}`);
-    });
-}
