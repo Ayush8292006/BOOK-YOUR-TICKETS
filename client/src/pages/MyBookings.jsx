@@ -4,7 +4,7 @@ import BlurCircle from '../components/BlurCircle';
 import timeFormat from '../lib/timeFormat';
 import { dateFormat } from '../lib/dateFormate';
 import { useAppContext } from '../context/AppContext';
-import { Calendar, Clock, CreditCard, Ticket, X, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, CreditCard, Ticket } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,6 @@ const MyBookings = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
-  // ✅ Fetch bookings from backend
   const getMyBookings = async () => {
     try {
       setIsLoading(true);
@@ -29,7 +28,6 @@ const MyBookings = () => {
       });
       if (data.success) {
         setBookings(data.bookings);
-        console.log("Bookings loaded:", data.bookings);
       }
     } catch (error) {
       console.log(error);
@@ -39,18 +37,16 @@ const MyBookings = () => {
     }
   };
 
-  // ✅ Show ticket modal
   const handleShowTicket = (booking) => {
     setSelectedTicket(booking);
     setShowModal(true);
   };
 
-  // Load bookings on user login
   useEffect(() => {
     if (user) getMyBookings();
   }, [user]);
 
-  // Refresh bookings after Stripe redirect
+  // ✅ Handle Stripe redirect
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const success = queryParams.get('success');
@@ -85,7 +81,6 @@ const MyBookings = () => {
               key={item._id || index}
               className='group relative flex flex-col md:flex-row bg-white/[0.01] border border-white/5 rounded-2xl overflow-hidden hover:bg-white/[0.03] hover:border-primary/20 hover:shadow-[0_0_40px_rgba(0,0,0,0.5)] transition-all duration-500'
             >
-              {/* Poster Section */}
               <div className='relative md:w-48 shrink-0 overflow-hidden'>
                 <img
                   src={item.show?.movie?.poster_path ? image_base_url + item.show.movie.poster_path : '/placeholder.jpg'}
@@ -102,7 +97,6 @@ const MyBookings = () => {
                 </div>
               </div>
 
-              {/* Info Section */}
               <div className='flex-1 flex flex-col p-6 relative z-10'>
                 <div className='flex justify-between items-start'>
                   <div>
@@ -131,7 +125,6 @@ const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* Tickets & Action Buttons */}
                 <div className='mt-auto pt-6 border-t border-white/5 flex items-center justify-between flex-wrap gap-4'>
                   <div className='flex gap-8'>
                     <div className='group/label'>
@@ -149,7 +142,6 @@ const MyBookings = () => {
                   </div>
 
                   <div className='flex gap-3'>
-                    {/* ✅ Show Ticket Button - Only for paid bookings */}
                     {item.isPaid && (
                       <button
                         onClick={() => handleShowTicket(item)}
@@ -159,20 +151,21 @@ const MyBookings = () => {
                       </button>
                     )}
 
-                    {/* ✅ Pay Now Button - Only for unpaid bookings */}
-                   {/* ✅ Pay Now Button - Only for unpaid bookings */}
-{!item.isPaid && item.paymentLink ? (
-  <a
-    href={item.paymentLink}
-    className='flex items-center gap-2 bg-primary text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest'
+
+{!item.isPaid && (
+  <button
+    onClick={() => navigate(`/dummy-payment/${item._id}`)}
+    className='flex items-center gap-2 bg-primary text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all'
   >
     <CreditCard className='w-3.5 h-3.5' /> Pay Now
-  </a>
-) : item.isPaid ? (
-  <div className='flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider'>
-    ✓ Payment Confirmed
-  </div>
-) : null}
+  </button>
+)}
+                    
+                    {item.isPaid && (
+                      <div className='flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider'>
+                        ✓ Payment Confirmed
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -185,7 +178,7 @@ const MyBookings = () => {
         </div>
       </div>
 
-      {/* ✅ Ticket Modal */}
+      {/* Ticket Modal */}
       {showModal && selectedTicket && (
         <div 
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -195,14 +188,12 @@ const MyBookings = () => {
             className="bg-gradient-to-br from-gray-900 to-black rounded-2xl max-w-md w-full border border-white/20 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Ticket Header */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-center">
               <Ticket className="w-12 h-12 mx-auto mb-3 text-white" />
               <h2 className="text-2xl font-black text-white">Movie Ticket</h2>
               <p className="text-purple-200 text-sm mt-1">Valid for one entry</p>
             </div>
             
-            {/* Ticket Content */}
             <div className="p-6 space-y-4">
               <div className="border-b border-white/10 pb-3">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Movie</p>
@@ -251,7 +242,6 @@ const MyBookings = () => {
               </div>
             </div>
             
-            {/* Ticket Footer */}
             <div className="bg-white/5 p-4 text-center border-t border-white/10">
               <p className="text-gray-400 text-xs">Please show this ticket at the cinema entrance</p>
               <button

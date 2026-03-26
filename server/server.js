@@ -7,20 +7,15 @@ import showRouter from './routes/showRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRoutes.js';
 import userRouter from './routes/userRoutes.js';
-import { stripeWebHooks } from './controllers/stripeWebHooks.js';
+// ❌ Remove: import stripeRouter from './routes/stripeRoutes.js';
 
 const app = express();
 const port = 3000;
 
 await connectDB();
 
-// ✅ WEBHOOK MUST BE BEFORE express.json()
-app.use('/api/stripe', express.raw({ type: 'application/json' }), stripeWebHooks);
-
-// ✅ This should come AFTER webhook route
 app.use(express.json());
 
-// ✅ UPDATE CORS - Add your frontend URL
 app.use(cors({
   origin: ['http://localhost:5173', 'https://cinebook-livid.vercel.app'],
   credentials: true
@@ -35,6 +30,7 @@ app.use('/api/show', showRouter);
 app.use('/api/booking', bookingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/user', userRouter);
+// ❌ Remove: app.use('/api/stripe', stripeRouter);
 
 app.listen(port, () => {
   console.log(`✅ Server listening at http://localhost:${port}`);

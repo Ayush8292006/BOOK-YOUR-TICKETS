@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Loading from '../components/Loading';
 import { ArrowRight, Clock, Armchair, CheckCircle2 } from 'lucide-react';
 import isoTimeFormat from '../lib/isoTimeFormat';
@@ -18,21 +18,18 @@ const SeatLayout = () => {
 
   const navigate = useNavigate();
   const { axios, user, getToken } = useAppContext();
-  const location = useLocation();
 
   const getShow = async () => {
     try {
       const { data } = await axios.get(`/api/show/${id}`);
       if (data.success) {
         const dateTimeWithPrice = {};
-        
         Object.keys(data.shows).forEach(date => {
           dateTimeWithPrice[date] = data.shows[date].map(show => ({
             ...show,
             price: show.price || data.movie?.showPrice || 0
           }));
         });
-        
         setShow({ 
           movie: data.movie, 
           dateTime: dateTimeWithPrice 
@@ -66,45 +63,58 @@ const SeatLayout = () => {
     if (occupiedSeats.includes(seatId)) {
       return toast.error("Seat already booked!");
     }
-    
     if (!selectedSeats.includes(seatId) && selectedSeats.length >= 5) {
       return toast.error("Maximum 5 seats allowed");
     }
-    
     setSelectedSeats(prev =>
       prev.includes(seatId) ? prev.filter(s => s !== seatId) : [...prev, seatId]
     );
   };
 
-  const bookTickets = async () => {
+  // ✅ MOCK PAYMENT - No Gateway!
+  const handleMockPayment = async (bookingId) => {
     try {
-      if (!user) return toast.error('Please login to book tickets');
-      if (!selectedTime || selectedSeats.length === 0) return toast.error('Select time & seats');
+      const { data } = await axios.post(`/api/booking/mock-payment/${bookingId}`);
       
-      setIsBooking(true);
-      const token = await getToken();
-      
-      const { data } = await axios.post('/api/booking/create', 
-        { 
-          showId: selectedTime.showId, 
-          seats: selectedSeats 
-        }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
       if (data.success) {
-        toast.success("Redirecting to payment...");
-        window.location.href = data.url; 
+        toast.success("🎉 Payment Successful! Your seats are confirmed.");
+        navigate('/my-bookings');
       } else {
-        toast.error(data.message);
+        toast.error(data.message || 'Payment failed');
       }
     } catch (error) {
-      console.error("Booking error:", error);
-      toast.error(error.response?.data?.message || "Booking failed. Please try again.");
-    } finally {
-      setIsBooking(false);
+      console.error('Mock payment error:', error);
+      toast.error('Payment failed');
     }
   };
+
+// ✅ BOOK TICKETS - Redirect to Dummy Payment Page
+const bookTickets = async () => {
+  try {
+    if (!user) return toast.error('Please login to book tickets');
+    if (!selectedTime || selectedSeats.length === 0) return toast.error('Select time & seats');
+    
+    setIsBooking(true);
+    const token = await getToken();
+    
+    const { data } = await axios.post('/api/booking/create', 
+      { showId: selectedTime.showId, seats: selectedSeats }, 
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    if (data.success) {
+      // ✅ Redirect to dummy payment page
+      navigate(`/dummy-payment/${data.bookingId}`);
+    } else {
+      toast.error(data.message);
+    }
+  } catch (error) {
+    console.error("Booking error:", error);
+    toast.error(error.response?.data?.message || "Booking failed. Please try again.");
+  } finally {
+    setIsBooking(false);
+  }
+};
 
   useEffect(() => {
     getShow();
@@ -112,7 +122,6 @@ const SeatLayout = () => {
 
   if (!show) return <Loading />;
 
-  // ✅ Get current price from selected time or movie
   const currentPrice = selectedTime?.price || show?.movie?.showPrice || 0;
 
   return (
@@ -120,7 +129,6 @@ const SeatLayout = () => {
       <BlurCircle top='-10%' left='-5%' color="bg-primary" opacity="opacity-10" />
       
       <div className='max-w-[1400px] mx-auto flex flex-col xl:flex-row gap-16 relative z-10'>
-        
         <div className='xl:w-96 flex flex-col gap-8'>
           <div className='border-l-4 border-primary pl-6 py-2'>
             <h1 className='text-5xl font-black uppercase tracking-tighter leading-none italic'>{show.movie.title}</h1>
@@ -178,16 +186,11 @@ const SeatLayout = () => {
                             key={seatId}
                             onClick={() => handleSeatClick(seatId)}
                             disabled={isOccupied}
-                            className={`
-                              relative h-9 w-9 sm:h-10 sm:w-10 rounded-xl transition-all duration-500 
-                              flex items-center justify-center group overflow-hidden
-                              ${isOccupied 
-                                ? "bg-white/[0.03] text-gray-900 cursor-not-allowed border border-white/5 opacity-40" 
-                                : isSelected 
-                                  ? "bg-primary text-black shadow-[0_0_25px_rgba(var(--primary-rgb),0.6)] scale-110 -translate-y-1.5 z-20" 
-                                  : "bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-white/10 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] text-gray-500 hover:text-primary"
-                              }
-                            `}
+                            className={`relative h-9 w-9 sm:h-10 sm:w-10 rounded-xl transition-all duration-500 flex items-center justify-center group overflow-hidden ${
+                              isOccupied ? "bg-white/[0.03] text-gray-900 cursor-not-allowed border border-white/5 opacity-40" 
+                              : isSelected ? "bg-primary text-black shadow-[0_0_25px_rgba(var(--primary-rgb),0.6)] scale-110 -translate-y-1.5 z-20" 
+                              : "bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-white/10 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] text-gray-500 hover:text-primary"
+                            }`}
                           >
                             <Armchair className={`w-5 h-5 transition-all duration-300 ${isSelected ? 'scale-110' : 'group-hover:scale-110'}`} />
                             <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase transition-all duration-300 ${isSelected ? 'text-black/60' : 'text-primary opacity-0 group-hover:opacity-100'}`}>

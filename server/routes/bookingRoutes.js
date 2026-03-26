@@ -4,15 +4,17 @@ import {
   getOccupiedSeats,
   getUserBookings,
   cancelBooking,
-} from "../controllers/BookingController.js";
-
-import { requireAuth } from "@clerk/express";
+  mockPayment,
+  getBookingById
+} from "../controllers/bookingController.js";
 
 const bookingRouter = express.Router();
 
-bookingRouter.post("/create", requireAuth(), createBooking);
+bookingRouter.post("/create", createBooking);
 bookingRouter.get("/seats/:showId", getOccupiedSeats);
-bookingRouter.get("/user-bookings", requireAuth(), getUserBookings);
-bookingRouter.delete("/cancel/:bookingId", requireAuth(), cancelBooking);
+bookingRouter.get("/user-bookings", getUserBookings);
+bookingRouter.delete("/cancel/:bookingId", cancelBooking);
+bookingRouter.post("/mock-payment/:bookingId", mockPayment);  // ✅ Mock payment
+bookingRouter.get("/:bookingId", getBookingById);              // ✅ Get single booking
 
 export default bookingRouter;

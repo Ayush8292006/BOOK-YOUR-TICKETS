@@ -20,6 +20,7 @@ import { SignIn } from '@clerk/react'
 import AboutUs from './pages/AboutUs'
 import Legal from './pages/Legal'
 import Loading from './components/Loading'
+import DummyPayment from './pages/DummyPayment';
 
 
 const App = () => {
@@ -39,6 +40,7 @@ const App = () => {
       <Route path = '/movies' element = {<Movies/>}/>
       <Route path = '/movies/:id' element = {<MovieDetails/>}/>
       <Route path = '/movies/:id/:date' element = {<SeatLayout/>}/>
+      <Route path="/dummy-payment/:bookingId" element={<DummyPayment />} />
       <Route path = '/my-bookings' element = {<MyBookings/>}/>
       <Route path = '/loading/:nextUrl' element = {<Loading/>}/>
       <Route path = '/favorite' element = {<Favourite/>}/>

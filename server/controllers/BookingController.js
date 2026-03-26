@@ -1,17 +1,12 @@
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
-import Stripe from "stripe";
-
-const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ CHECK SEAT AVAILABILITY
 const checkSeatAvailability = async (showId, selectedSeats) => {
   try {
     const showData = await Show.findById(showId);
     if (!showData) return false;
-
     const occupiedSeats = showData.occupiedSeats || [];
-
     return !selectedSeats.some(seat => occupiedSeats.includes(seat));
   } catch (error) {
     console.log(error.message);
@@ -24,25 +19,20 @@ export const createBooking = async (req, res) => {
   try {
     const { showId, seats } = req.body;
     const userId = req.auth().userId;
-    const { origin } = req.headers;
-
+    
     if (!seats || seats.length === 0) {
       return res.json({ success: false, message: "No seats selected" });
     }
-
+    
     const isAvailable = await checkSeatAvailability(showId, seats);
-
+    
     if (!isAvailable) {
-      return res.json({
-        success: false,
-        message: "Seats already booked",
-      });
+      return res.json({ success: false, message: "Seats already booked" });
     }
-
+    
     const showData = await Show.findById(showId).populate("movie");
-
     const amount = Number(showData.showPrice) * seats.length;
-
+    
     const booking = await Booking.create({
       user: userId,
       show: showId,
@@ -50,36 +40,71 @@ export const createBooking = async (req, res) => {
       bookedSeats: seats,
       isPaid: false,
     });
-
-    const session = await stripeInstance.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "inr",
-            product_data: {
-              name: showData.movie.title,
-            },
-            unit_amount: amount * 100,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${origin}/my-bookings?success=true`,
-      cancel_url: `${origin}/my-bookings?canceled=true`,
-      metadata: {
-        bookingId: booking._id.toString(),
-      },
+    
+    res.json({ 
+      success: true, 
+      message: "Booking created", 
+      bookingId: booking._id,
+      amount: booking.amount
     });
-
-    booking.paymentLink = session.url;
-    await booking.save();
-
-    res.json({ success: true, url: session.url });
-
+    
   } catch (error) {
     console.log(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// ✅ GET SINGLE BOOKING (For payment page)
+export const getBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await Booking.findById(bookingId)
+      .populate({
+        path: "show",
+        populate: { path: "movie" }
+      });
+    
+    if (!booking) {
+      return res.json({ success: false, message: "Booking not found" });
+    }
+    
+    res.json({ success: true, booking });
+  } catch (error) {
+    console.log(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// ✅ MOCK PAYMENT - No Gateway Required!
+export const mockPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.json({ success: false, message: "Booking not found" });
+    }
+    
+    if (booking.isPaid) {
+      return res.json({ success: false, message: "Already paid" });
+    }
+    
+    // Mark as paid
+    booking.isPaid = true;
+    await booking.save();
+    
+    // Update occupied seats in Show
+    const show = await Show.findById(booking.show);
+    if (show) {
+      const currentOccupied = show.occupiedSeats || [];
+      show.occupiedSeats = [...currentOccupied, ...booking.bookedSeats];
+      await show.save();
+    }
+    
+    res.json({ success: true, message: "Payment successful!" });
+    
+  } catch (error) {
+    console.error("Mock payment error:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -88,19 +113,12 @@ export const createBooking = async (req, res) => {
 export const getOccupiedSeats = async (req, res) => {
   try {
     const { showId } = req.params;
-
     const showData = await Show.findById(showId);
-
-    const occupiedSeats = showData.occupiedSeats || [];
-
+    const occupiedSeats = showData?.occupiedSeats || [];
     res.json({ success: true, occupiedSeats });
-
   } catch (error) {
     console.log(error.message);
-    res.json({
-      success: false,
-      message: error.message,
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -108,25 +126,17 @@ export const getOccupiedSeats = async (req, res) => {
 export const getUserBookings = async (req, res) => {
   try {
     const userId = req.auth().userId;
-
     const bookings = await Booking.find({ user: userId })
       .populate({
         path: "show",
         populate: { path: "movie" },
       })
       .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      bookings,
-    });
-
+    
+    res.json({ success: true, bookings });
   } catch (error) {
     console.log(error.message);
-    res.json({
-      success: false,
-      message: error.message,
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -135,17 +145,17 @@ export const cancelBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const userId = req.auth().userId;
-
+    
     const booking = await Booking.findById(bookingId);
     
     if (!booking) {
       return res.json({ success: false, message: "Booking not found" });
     }
-
+    
     if (booking.user !== userId) {
       return res.json({ success: false, message: "Unauthorized" });
     }
-
+    
     if (booking.isPaid) {
       const showId = booking.show;
       const seats = booking.bookedSeats;
@@ -154,9 +164,8 @@ export const cancelBooking = async (req, res) => {
         $pull: { occupiedSeats: { $in: seats } }
       });
     }
-
+    
     await Booking.findByIdAndDelete(bookingId);
-
     res.json({ success: true, message: "Booking cancelled successfully" });
   } catch (error) {
     console.error("Cancel booking error:", error);
