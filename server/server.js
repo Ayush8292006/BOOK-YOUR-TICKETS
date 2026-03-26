@@ -19,7 +19,13 @@ app.use('/api/stripe', express.raw({ type: 'application/json' }), stripeWebHooks
 
 // ✅ This should come AFTER webhook route
 app.use(express.json());
-app.use(cors());
+
+// ✅ UPDATE CORS - Add your frontend URL
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://cinebook-livid.vercel.app'],
+  credentials: true
+}));
+
 app.use(clerkMiddleware());
 
 app.get('/', (req, res) => res.send('Server is Live!'));
