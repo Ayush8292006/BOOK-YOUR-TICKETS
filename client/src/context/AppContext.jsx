@@ -1,6 +1,6 @@
 import { useState, useContext, createContext, useEffect } from "react";
 import axios from "axios";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
